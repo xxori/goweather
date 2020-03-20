@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
-	"goweather/notify"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
+	"strings"
 )
 
 const key string = "7adac862fe4f6f846740870350185838"
@@ -39,22 +41,52 @@ type weatherInfo struct {
 	Cod      int
 }
 
-func main() {
+func getWeather(location string) (weatherInfo, error) {
 	// Get request on openweather api
-	response, err := http.Get("http://api.openweathermap.org/data/2.5/weather?q=adelaide&units=metric&appid=" + key)
+	response, err := http.Get("http://api.openweathermap.org/data/2.5/weather?q=" + location + "&units=metric&appid=" + key)
 	// Funky golang error handling
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return weatherInfo{}, err
 	}
-	data, _ := ioutil.ReadAll(response.Body)
+	data, err := ioutil.ReadAll(response.Body)
+
+	// Yet more funy go error handling
+	if err != nil {
+		return weatherInfo{}, err
+	}
+
 	// Setting var result of type weatherInfo struct and then unmarshalling json result into the variable
 	var result weatherInfo
 	json.Unmarshal([]byte(data), &result)
-	//fmt.Printf("The weather in %s is %f degrees celcius", result.Name, result.Main["feels_like"])
-	error := notify.SendLinux("Weather Alert", "The weather in "+result.Name+" is "+fmt.Sprintf("%.2f", result.Main["temp"])+" degrees celcius.", "icons/cloud.png", "normal", "5000")
-	if error != nil {
-		fmt.Println(error)
-	}
+	return result, nil
+}
 
+// Linux notification sending using libnotf
+func notifSend(title string, message string, icon string, urgency string, delay string) error {
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	dir := currentDir + "/" + icon
+
+	cmd := exec.Command("notify-send", "-i", dir, "-u", urgency, "-t", delay, title, message)
+	err = cmd.Run()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func main() {
+	read := bufio.NewReader(os.Stdin)
+	location, _ := read.ReadString('\n')
+	location = strings.Replace(location, "\n", "", -1)
+	resp, err := getWeather(location)
+	if err != nil {
+		panic(err)
+	}
+	if resp.Cod == 0 {
+		panic("Invalid city")
+	}
+	fmt.Println(resp)
 }
