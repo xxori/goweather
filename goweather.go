@@ -1,14 +1,13 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
-	"strings"
 )
 
 const key string = "7adac862fe4f6f846740870350185838"
@@ -42,7 +41,7 @@ type weatherInfo struct {
 }
 
 func getWeather(location string) (weatherInfo, error) {
-	// Get request on openweather api
+	// Get request on openweather api, docs at https://openweathermap.org/current
 	response, err := http.Get("http://api.openweathermap.org/data/2.5/weather?q=" + location + "&units=metric&appid=" + key)
 	// Funky golang error handling
 	if err != nil {
@@ -57,6 +56,7 @@ func getWeather(location string) (weatherInfo, error) {
 
 	// Setting var result of type weatherInfo struct and then unmarshalling json result into the variable
 	var result weatherInfo
+	// Unmarshalling the json data and passing a pointer to the empty weatherInfo struct result
 	json.Unmarshal([]byte(data), &result)
 	return result, nil
 }
@@ -78,15 +78,43 @@ func notifSend(title string, message string, icon string, urgency string, delay 
 }
 
 func main() {
-	read := bufio.NewReader(os.Stdin)
-	location, _ := read.ReadString('\n')
-	location = strings.Replace(location, "\n", "", -1)
-	resp, err := getWeather(location)
+	notif := flag.Bool("n", false, "Send a notification of output or print to console")
+	respType := flag.String("t", "temp", "Determines response type (temp, weather)")
+	flag.Parse()
+	if len(flag.Args()) == 0 {
+		exit("Please input a target city or place")
+	}
+
+	resp, err := getWeather(flag.Args()[0])
 	if err != nil {
-		panic(err)
+		exit(err.Error())
 	}
+
 	if resp.Cod == 0 {
-		panic("Invalid city")
+		exit("Invalid target place")
 	}
-	fmt.Println(resp)
+	var title, icon, text string
+	switch *respType {
+	case "temp":
+		title = "Temperature in " + resp.Name
+		text = fmt.Sprintf("Current: %.2f\nMax: %.2f\nMin: %.2f\nFeel Like: %.2f", resp.Main["temp"], resp.Main["temp_max"], resp.Main["temp_min"], resp.Main["feels_like"])
+		icon = "icons/thermometer-half.png"
+	case "weather":
+		title = "Weather in " + resp.Name
+		text = resp.Weather[0].Description
+		icon = "icons/cloud.png"
+	default:
+		exit("Invalid response information")
+	}
+	if *notif {
+		notifSend(title, text, icon, "normal", "5000")
+	} else {
+		fmt.Println(resp)
+		fmt.Println(*respType)
+	}
+}
+
+func exit(message string) {
+	fmt.Println(message)
+	os.Exit(1)
 }
