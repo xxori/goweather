@@ -11,6 +11,7 @@ import (
 
 const key string = "7adac862fe4f6f846740870350185838"
 
+//Struct representing openweathermap api response
 type weatherInfo struct {
 	Coord   map[string]float64
 	Weather []struct {
@@ -47,6 +48,7 @@ func main() {
 		os.Exit(1)
 	}
 	data, _ := ioutil.ReadAll(response.Body)
+	// Setting var result of type weatherInfo struct and then unmarshalling json result into the variable
 	var result weatherInfo
 	json.Unmarshal([]byte(data), &result)
 	//fmt.Printf("The weather in %s is %f degrees celcius", result.Name, result.Main["feels_like"])
