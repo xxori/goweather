@@ -23,9 +23,9 @@ type weatherInfo struct {
 	}
 	Main   map[string]float64
 	Wind   map[string]float64
-	Clouds map[string]interface{}
-	Rain   map[string]interface{}
-	Snow   map[string]interface{}
+	Clouds map[string]float64
+	Rain   map[string]float64
+	Snow   map[string]float64
 	Dt     int
 	Sys    struct {
 		Type    int
@@ -85,7 +85,7 @@ func main() {
 		exit("Please input a target city or place")
 	}
 
-	resp, err := getWeather(flag.Args()[0])
+	resp, err := getWeather(flag.Args()[0]...)
 	if err != nil {
 		exit(err.Error())
 	}
@@ -103,14 +103,36 @@ func main() {
 		title = "Weather in " + resp.Name
 		text = resp.Weather[0].Description
 		icon = "icons/cloud.png"
+	case "wind":
+		title = "Wind in " + resp.Name
+		text = fmt.Sprintf("Speed: %.2fm/s\nDirection: %.2f degrees", resp.Wind["speed"], resp.Wind["deg"])
+		icon = "icons/wind.png"
+	case "rain":
+		title = "Rain in " + resp.Name
+		if resp.Rain["1h"] == 0 && resp.Rain["3h"] == 0 {
+			text = "There is currently no rain in " + resp.Name
+			icon = "icons/x.png"
+		} else {
+			text = fmt.Sprintf("Volume in last hour: %.2fmm\nVolume in last 3 hours: %.2fmm", resp.Rain["1h"], resp.Rain["3h"])
+			icon = "icons/cloud-pouring.png"
+		}
+	case "snow":
+		title = "Snow in " + resp.Name
+		if resp.Snow["1h"] == 0 && resp.Snow["3h"] == 0 {
+			text = "There is currently no snow in " + resp.Name
+			icon = "icons/x.png"
+		} else {
+			text = fmt.Sprintf("Volume in last hour: %.2fmm\nVolume in last 3 hours: %.2fmm", resp.Snow["1h"], resp.Snow["3h"])
+			icon = "icons/cloud-snow.png"
+		}
+
 	default:
 		exit("Invalid response information")
 	}
 	if *notif {
-		notifSend(title, text, icon, "normal", "5000")
+		notifSend(title, text, icon, "normal", "10000")
 	} else {
-		fmt.Println(resp)
-		fmt.Println(*respType)
+		fmt.Println(text)
 	}
 }
 
