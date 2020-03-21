@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 const key string = "7adac862fe4f6f846740870350185838"
@@ -49,7 +50,7 @@ func getWeather(location string) (weatherInfo, error) {
 	}
 	data, err := ioutil.ReadAll(response.Body)
 
-	// Yet more funy go error handling
+	// Yet more funky go error handling
 	if err != nil {
 		return weatherInfo{}, err
 	}
@@ -78,14 +79,16 @@ func notifSend(title string, message string, icon string, urgency string, delay 
 }
 
 func main() {
+	// Declaring arguments for cli usage
 	notif := flag.Bool("n", false, "Send a notification of output or print to console")
-	respType := flag.String("t", "temp", "Determines response type (temp, weather)")
+	respType := flag.String("t", "temp", "Determines response type (temp, weather, wind, rain, snow)")
 	flag.Parse()
+	// If user doesn't enter target city program exits
 	if len(flag.Args()) == 0 {
 		exit("Please input a target city or place")
 	}
 
-	resp, err := getWeather(flag.Args()[0]...)
+	resp, err := getWeather(strings.Join(flag.Args(), " "))
 	if err != nil {
 		exit(err.Error())
 	}
@@ -94,6 +97,8 @@ func main() {
 		exit("Invalid target place")
 	}
 	var title, icon, text string
+
+	// Switch for what the weather information the user asked for
 	switch *respType {
 	case "temp":
 		title = "Temperature in " + resp.Name
@@ -136,6 +141,7 @@ func main() {
 	}
 }
 
+// Helper function
 func exit(message string) {
 	fmt.Println(message)
 	os.Exit(1)
